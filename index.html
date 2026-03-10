@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SAR · Vitals Detection System</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles/stylesheet.css" />
+
+</head>
+<body>
+
+<div id="top-bar"></div>
+<div id="alerts"></div>
+
+<div id="app">
+
+  <!-- HEADER -->
+  <header>
+    <div class="header-left">
+      <div class="sub">◈ Search &amp; Rescue — Multi-Modal Vitals System</div>
+      <h1>Live Detection Dashboard</h1>
+    </div>
+    <div class="header-right">
+      <div class="badge disconnected" id="conn-badge">
+        <span class="badge-dot"></span>
+        <span id="conn-label">DISCONNECTED</span>
+      </div>
+      <button class="btn" id="demo-btn" onclick="toggleDemo()">▶ DEMO MODE</button>
+      <button class="btn" onclick="resetAll()">↺ RESET</button>
+    </div>
+  </header>
+
+  <!-- MAIN GRID -->
+  <div class="main-grid">
+
+    <!-- LEFT COLUMN -->
+    <div class="left-col">
+
+      <!-- Verdict -->
+      <div class="card" id="verdict-card">
+        <div class="verdict-label">◈ Diagnosis</div>
+        <div id="verdict-text">UNKNOWN</div>
+        <div class="conf-label">Confidence — <span id="conf-pct">0</span>%</div>
+        <div class="conf-track"><div id="conf-bar"></div></div>
+        <div class="vitals-grid">
+          <div class="vital-item"><div class="v-label">Breathing</div><div class="v-val" id="v-breath">—</div></div>
+          <div class="vital-item"><div class="v-label">Heart Rate</div><div class="v-val" id="v-hr">—</div></div>
+          <div class="vital-item"><div class="v-label">CO₂</div><div class="v-val" id="v-co2">—</div></div>
+          <div class="vital-item"><div class="v-label">Thermal</div><div class="v-val" id="v-temp">—</div></div>
+        </div>
+        <div class="person-status" id="person-status">
+          <span class="person-dot"></span>
+          <span id="person-label">NO PERSON DETECTED</span>
+        </div>
+      </div>
+
+      <!-- Video -->
+      <div class="card" id="video-card">
+        <div class="card-header">
+          <span class="live-dot" id="live-dot"></span>
+          LIVE FEED
+        </div>
+        <div id="video-wrap">
+          <div id="no-video"><div class="icon">◫</div>NO VIDEO SIGNAL</div>
+          <img id="video-img" style="display:none" alt="Live feed" />
+          <div class="scanlines"></div>
+        </div>
+        <div id="detections-wrap"></div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div class="right-col">
+
+      <!-- Signal charts (row 1) -->
+      <div class="charts-grid" id="charts-top"></div>
+
+      <!-- Signal charts (row 2) -->
+      <div class="charts-grid" id="charts-bot"></div>
+
+      <!-- Status matrix -->
+      <div class="card">
+        <div class="card-header">Signal Status Matrix</div>
+        <div class="matrix-grid" id="matrix-grid"></div>
+      </div>
+
+      <!-- System log -->
+      <div class="card">
+        <div class="card-header">System Log</div>
+        <div id="log-body"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="js/dash.js" defer></script>
+</body>
+</html>
