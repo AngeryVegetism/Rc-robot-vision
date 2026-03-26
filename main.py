@@ -434,3 +434,94 @@ async def demo_stop():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+
+import asyncio
+import base64
+import json
+import io
+import logging
+from pathlib import Path
+import ssl
+
+import websockets
+import numpy as np
+from PIL import Image
+from ultralytics import YOLO
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+log = logging.getLogger(__name__)
+
+# Load model once at startup
+log.info("Loading YOLOv26 model...")
+model = YOLO("yolo26n.pt")   
+log.info("Model ready ✓")
+
+CONFIDENCE_THRESHOLD = 0.35   # tweak as needed
+
+
+async def detect(websocket):
+    """Handle one browser client."""
+    remote = websocket.remote_address
+    log.info(f"Client connected: {remote}")
+    try:
+        async for message in websocket:
+            # ── decode frame ────────────────────────────────────────────────
+            if isinstance(message, bytes):
+                img_bytes = message
+            else:
+                # data-URL: "data:image/jpeg;base64,<b64>"
+                if "," in message:
+                    message = message.split(",", 1)[1]
+                img_bytes = base64.b64decode(message)
+
+            image = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+            frame = np.array(image)
+
+            # ── run inference ────────────────────────────────────────────────
+            results = model(frame, conf=CONFIDENCE_THRESHOLD, verbose=False)[0]
+
+            detections = []
+            for box in results.boxes:
+                x1, y1, x2, y2 = box.xyxy[0].tolist()
+                conf = float(box.conf[0])
+                cls  = int(box.cls[0])
+                label = model.names[cls]
+                detections.append({
+                    "x1": x1, "y1": y1, "x2": x2, "y2": y2,
+                    "conf": round(conf, 3),
+                    "label": label,
+                    "cls": cls,
+                })
+
+            # ── send back ────────────────────────────────────────────────────
+            await websocket.send(json.dumps({
+                "detections": detections,
+                "width": image.width,
+                "height": image.height,
+            }))
+
+    except websockets.exceptions.ConnectionClosedOK:
+        log.info(f"Client disconnected: {remote}")
+    except Exception as e:
+        log.error(f"Error with {remote}: {e}")
+
+
+async def main():
+    HOST = "0.0.0.0"
+    PORT = 8765
+
+    ssl_ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    ssl_ctx.load_cert_chain(
+        certfile="localhost+3.pem",
+        keyfile="localhost+3-key.pem"
+    )
+
+    log.info(f"WSS server listening on wss://{HOST}:{PORT}")
+    async with websockets.serve(detect, HOST, PORT,
+                                ssl=ssl_ctx,
+                                max_size=10 * 1024 * 1024):
+            await asyncio.Future()
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
