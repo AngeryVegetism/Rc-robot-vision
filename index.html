@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Robot Framework</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <div class="app-shell">
+    <!-- ══════════════ SIDEBAR ══════════════ -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-logo">
+        <div class="logo-mark">
+          <span class="logo-icon">◈</span>
+        </div>
+        <span class="logo-text">Welcome</span>
+      </div>
+
+      <nav class="sidebar-nav">
+        <button class="nav-item active" data-tooltip="Dashboard" data-view="dashboard">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        </button>
+        <button class="nav-item" data-tooltip="Camera Feed" data-view="camera">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14"/><rect x="3" y="8" width="12" height="8" rx="2"/></svg>
+        </button>
+        <button class="nav-item" data-tooltip="Detection Log" data-view="logs">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 12h6M9 16h6M9 8h6M5 4h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V5a1 1 0 011-1z"/></svg>
+        </button>
+        <button class="nav-item" data-tooltip="Analytics" data-view="analytics">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        </button>
+      </nav>
+
+      <div class="sidebar-bottom">
+        <button class="nav-item" id="settingsBtn" data-tooltip="Settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+        </button>
+        <div class="user-avatar" id="userAvatarBtn" data-tooltip="User">
+          <span id="userInitials">--</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ══════════════ MAIN CONTENT ══════════════ -->
+    <main class="main-content" id="mainContent" data-view="dashboard">
+
+    <!-- TOPBAR -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <h1 class="page-title">Operations</h1>
+        <div class="connection-pill" id="connectionPill">
+          <span class="conn-dot"></span>
+          <span class="conn-label" id="connLabel">Disconnected</span>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="search-box">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+          <input type="text" placeholder="Search logs..." id="searchInput" />
+        </div>
+        <div class="topbar-badge" id="alertBadge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
+          <span class="badge-count" id="alertCount">0</span>
+        </div>
+        <div class="user-info">
+          <span class="user-name" id="displayUserName">Not logged in</span>
+          <div class="user-chip" id="userChip">?</div>
+        </div>
+      </div>
+    </header>
+
+    <!-- STAT TILES -->
+    <section class="tiles-row" id="tilesRow">
+
+      <!-- TILE 1: Audio Waveform -->
+      <div class="tile" id="tile-audio">
+        <div class="tile-header">
+          <div class="tile-title-group">
+            <span class="tile-eyebrow">Audio Input</span>
+            <span class="tile-value" id="audioLevel">— dB</span>
+          </div>
+          <div class="tile-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8"/></svg>
+          </div>
+        </div>
+        <div class="tile-badge" id="audioBadge">mic active</div>
+        <canvas id="waveformCanvas" class="waveform-canvas"></canvas>
+        <div class="tile-footer">
+          <span class="footer-label">Sample rate</span>
+          <span class="footer-val">44.1 kHz</span>
+        </div>
+      </div>
+
+      <!-- TILE 2: IR Heatmap -->
+      <div class="tile" id="tile-ir">
+        <div class="tile-header">
+          <div class="tile-title-group">
+            <span class="tile-eyebrow">IR Thermal</span>
+            <span class="tile-value" id="irMaxTemp">— °C</span>
+          </div>
+          <div class="tile-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 14.76V3.5a2.5 2.5 0 00-5 0v11.26a4.5 4.5 0 105 0z"/></svg>
+          </div>
+        </div>
+        <div class="tile-badge" id="irBadge">sensor active</div>
+        <canvas id="heatmapCanvas" class="heatmap-canvas"></canvas>
+        <div class="tile-footer">
+          <span class="footer-label">Resolution</span>
+          <span class="footer-val">8×8 grid</span>
+        </div>
+      </div>
+
+      <!-- TILE 3: Status Overview -->
+      <div class="tile" id="tile-status">
+        <div class="tile-header">
+          <div class="tile-title-group">
+            <span class="tile-eyebrow">Detections</span>
+            <span class="tile-value" id="detectionCount">0</span>
+          </div>
+          <div class="tile-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </div>
+        </div>
+        <div class="tile-badge status-ok" id="statusBadge">system nominal</div>
+        <div class="status-grid">
+          <div class="status-row"><span>Humans detected</span><span class="status-val" id="humanCount">0</span></div>
+          <div class="status-row"><span>Objects logged</span><span class="status-val" id="objectCount">0</span></div>
+          <div class="status-row"><span>Session time</span><span class="status-val" id="sessionTime">00:00</span></div>
+          <div class="status-row"><span>Operator</span><span class="status-val" id="operatorName">—</span></div>
+        </div>
+      </div>
+
+      <!-- TILE 4: Manual Override -->
+      <div class="tile" id="tile-control">
+        <div class="tile-header">
+          <div class="tile-title-group">
+            <span class="tile-eyebrow">Manual Override</span>
+            <span class="tile-value" id="controlMode">AUTO</span>
+          </div>
+          <div class="tile-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+          </div>
+        </div>
+        <div class="tile-badge" id="controlBadge">autonomous</div>
+        <div class="control-pad">
+          <div class="dpad">
+            <button class="dpad-btn dpad-up" id="btn-up" data-key="ArrowUp">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>
+            </button>
+            <div class="dpad-middle-row">
+              <button class="dpad-btn dpad-left" id="btn-left" data-key="ArrowLeft">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+              </button>
+              <button class="dpad-btn dpad-center" id="btn-stop" data-key=" ">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
+              </button>
+              <button class="dpad-btn dpad-right" id="btn-right" data-key="ArrowRight">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+            </div>
+            <button class="dpad-btn dpad-down" id="btn-down" data-key="ArrowDown">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+          </div>
+          <div class="control-meta">
+            <label class="toggle-label">
+              <input type="checkbox" id="manualToggle" class="toggle-input" />
+              <span class="toggle-track"></span>
+              <span class="toggle-text">Enable Manual</span>
+            </label>
+            <div class="speed-control">
+              <span class="speed-label">Speed</span>
+              <input type="range" id="speedSlider" min="0" max="100" value="50" class="speed-slider" />
+              <span class="speed-val" id="speedVal">50%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- CAMERA / DETECTION SECTION -->
+    <section class="camera-section" id="cameraSection">
+      <div class="camera-card" id="cameraCard">
+        <div class="camera-header">
+          <span class="camera-title">Live Camera Feed</span>
+          <div class="camera-controls">
+            <div class="rec-indicator" id="recIndicator">
+              <span class="rec-dot"></span> REC
+            </div>
+            <button class="cam-btn" id="snapshotBtn" title="Snapshot">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            </button>
+            <button class="cam-btn" id="fullscreenBtn" title="Fullscreen">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="camera-viewport" id="cameraViewport">
+          <canvas id="detectionCanvas"></canvas>
+          <div class="camera-placeholder" id="cameraPlaceholder">
+            <div class="placeholder-inner">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14"/><rect x="3" y="8" width="12" height="8" rx="2"/></svg>
+              <p>No camera feed</p>
+              <span>Connect to WebSocket to start stream</span>
+            </div>
+          </div>
+          <div class="scanline-overlay"></div>
+          <div class="corner-mark tl"></div>
+          <div class="corner-mark tr"></div>
+          <div class="corner-mark bl"></div>
+          <div class="corner-mark br"></div>
+          <div class="camera-hud">
+            <span class="hud-item" id="hudFPS">0 FPS</span>
+            <span class="hud-item" id="hudRes">—</span>
+            <span class="hud-item" id="hudTimestamp">--:--:--</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- DETECTION LOG -->
+      <div class="log-card" id="logCard">
+        <div class="log-header">
+          <span class="log-title">Human Detection Log</span>
+          <button class="log-clear-btn" id="clearLogBtn">Clear</button>
+        </div>
+        <div class="log-list" id="logList">
+          <div class="log-empty">No human detections yet</div>
+        </div>
+      </div>
+    </section>
+
+    </main>
+  </div>
+
+  <!-- ══════════════ SETTINGS PANEL ══════════════ -->
+  <div class="settings-overlay" id="settingsOverlay"></div>
+  <aside class="settings-panel" id="settingsPanel">
+    <div class="settings-header">
+      <h2>Settings</h2>
+      <button class="settings-close" id="settingsClose">×</button>
+    </div>
+
+    <div class="settings-body">
+
+      <section class="settings-section">
+        <h3>Appearance</h3>
+        <div class="settings-row">
+          <label>Theme</label>
+          <div class="theme-toggle-group">
+            <button class="theme-btn active" id="themeDark">Dark</button>
+            <button class="theme-btn" id="themeLight">Light</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="settings-section">
+        <h3>Connection</h3>
+        <div class="settings-row col">
+          <label>WebSocket Server IP</label>
+          <div class="input-row">
+            <input type="text" id="wsHost" placeholder="192.168.1.100" class="settings-input" />
+            <span class="input-sep">:</span>
+            <input type="text" id="wsPort" placeholder="8765" class="settings-input narrow" />
+          </div>
+        </div>
+        <div class="settings-row col">
+          <label>Endpoint Path</label>
+          <input type="text" id="wsPath" placeholder="/ws" class="settings-input" />
+        </div>
+        <div class="settings-row">
+          <label>Protocol</label>
+          <select class="settings-select" id="wsProtocol">
+            <option value="ws">ws://</option>
+            <option value="wss">wss://</option>
+          </select>
+        </div>
+        <button class="settings-btn primary" id="connectBtn">Connect</button>
+        <button class="settings-btn danger" id="disconnectBtn">Disconnect</button>
+      </section>
+
+      <section class="settings-section">
+        <h3>Database</h3>
+        <div class="settings-row col">
+          <label>MySQL Host</label>
+          <input type="text" id="dbHost" placeholder="localhost" class="settings-input" />
+        </div>
+        <div class="settings-row col">
+          <label>Database Name</label>
+          <input type="text" id="dbName" placeholder="rover_db" class="settings-input" />
+        </div>
+        <div class="settings-row col">
+          <label>API Endpoint (DB Proxy)</label>
+          <input type="text" id="dbApiUrl" placeholder="http://localhost:3001/api" class="settings-input" />
+        </div>
+        <div class="settings-row">
+          <label>Save sessions to DB</label>
+          <label class="toggle-label small">
+            <input type="checkbox" id="dbSaveToggle" class="toggle-input" checked />
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+      </section>
+
+      <section class="settings-section">
+        <h3>Operator Session</h3>
+        <div class="settings-row">
+          <label>Current operator</label>
+          <span class="settings-value" id="settingsOperatorName">Not logged in</span>
+        </div>
+        <button class="settings-btn" id="logoutBtn">Logout</button>
+        <div class="login-status" id="loginStatus"></div>
+      </section>
+
+      <section class="settings-section">
+        <h3>Camera</h3>
+        <div class="settings-row">
+          <label>Bounding Box Color</label>
+          <input type="color" id="bboxColor" value="#5c5cff" class="color-picker" />
+        </div>
+        <div class="settings-row">
+          <label>Show confidence %</label>
+          <label class="toggle-label small">
+            <input type="checkbox" id="showConfToggle" class="toggle-input" checked />
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+        <div class="settings-row">
+          <label>Log only humans</label>
+          <label class="toggle-label small">
+            <input type="checkbox" id="humanOnlyToggle" class="toggle-input" checked />
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+      </section>
+
+    </div>
+  </aside>
+
+  <div class="auth-overlay" id="authOverlay">
+    <div class="auth-card" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+      <div class="auth-brand">
+        <div class="auth-mark">◈</div>
+        <span class="auth-kicker">Framework</span>
+      </div>
+      <h2 id="authTitle">Login required</h2>
+      <p class="auth-copy">Sign in before using the dashboard or connecting to the robot feed.</p>
+      <div class="auth-form">
+        <label class="auth-field" for="operatorInput">
+          <span>Username</span>
+          <input type="text" id="operatorInput" placeholder="username" class="settings-input" autocomplete="username" />
+        </label>
+        <label class="auth-field" for="operatorPass">
+          <span>Password</span>
+          <input type="password" id="operatorPass" placeholder="••••••••" class="settings-input" autocomplete="current-password" />
+        </label>
+        <button class="settings-btn primary" id="loginBtn">Login to continue</button>
+        <div class="login-status" id="authLoginStatus"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

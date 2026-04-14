@@ -1,0 +1,4 @@
+*.env
+*.sql
+node_modules/
+*.codex
