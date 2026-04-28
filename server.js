@@ -25,6 +25,7 @@ const pool = mysql.createPool({
   user:     process.env.DB_USER     || '',
   password: process.env.DB_PASS     || '',
   database: process.env.DB_NAME     || '',
+  port:     process.env.DB_PORT     || '',
   waitForConnections: true,
   connectionLimit:    10,
 });
@@ -195,4 +196,4 @@ app.get('/api/detections', async (req, res) => {
 
 // ── Start ─────────────────────────────────────────────────────
 
-app.listen(PORT, () => console.log(`ROVER API listening on port ${PORT}`));
+app.listen(PORT, () => console.log(`Framework API listening on port ${PORT}`));
