@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Robot Framework Admin</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+</head>
+<body class="auth-locked">
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-logo">
+        <div class="logo-mark">
+          <span class="logo-icon">&bull;</span>
+        </div>
+        <span class="logo-text">Admin</span>
+      </div>
+
+      <nav class="sidebar-nav" aria-label="Admin navigation">
+        <a class="nav-item active" data-tooltip="Admin Panel" href="admin.html" aria-label="Admin Panel">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l8 4v5c0 5-3.4 8.4-8 9-4.6-.6-8-4-8-9V7l8-4z"/><path d="M9 12l2 2 4-5"/></svg>
+        </a>
+      </nav>
+
+      <div class="sidebar-bottom">
+        <a class="nav-item" data-tooltip="Main App" href="index.html" aria-label="Main App">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12h18"/><path d="M10 5l-7 7 7 7"/></svg>
+        </a>
+        <div class="user-avatar" id="userAvatarBtn" data-tooltip="Admin user" role="button" tabindex="0">
+          <span id="userInitials">--</span>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main-content admin-main" id="mainContent" data-view="admin">
+      <header class="topbar">
+        <div class="topbar-left">
+          <h1 class="page-title">Admin Panel</h1>
+        </div>
+        <div class="topbar-right">
+          <div class="user-info">
+            <span class="user-name" id="displayUserName">Not logged in</span>
+            <div class="user-chip" id="userChip">?</div>
+          </div>
+          <button class="settings-btn danger admin-logout-btn" id="logoutBtn" type="button">Logout</button>
+        </div>
+      </header>
+
+      <section class="admin-section" id="adminSection">
+        <div class="admin-toolbar">
+          <div>
+            <span class="admin-kicker">Database overview</span>
+            <h2>Monitoring Sessions</h2>
+          </div>
+          <button class="settings-btn primary admin-refresh-btn" id="adminRefreshBtn" type="button">Refresh</button>
+        </div>
+
+        <div class="admin-summary-grid">
+          <div class="admin-summary"><span>Total sessions</span><strong id="adminTotalSessions">0</strong></div>
+          <div class="admin-summary"><span>Human detections</span><strong id="adminTotalDetections">0</strong></div>
+          <div class="admin-summary"><span>Avg duration</span><strong id="adminAvgDuration">00:00</strong></div>
+          <div class="admin-summary"><span>Active sessions</span><strong id="adminActiveSessions">0</strong></div>
+        </div>
+
+        <div class="admin-grid">
+          <div class="admin-panel">
+            <div class="admin-panel-header">
+              <h3>Who Was Monitoring</h3>
+            </div>
+            <div class="admin-table-wrap">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>Operator</th>
+                    <th>Started</th>
+                    <th>Ended</th>
+                    <th>Duration</th>
+                    <th>Detections</th>
+                  </tr>
+                </thead>
+                <tbody id="adminSessionsBody">
+                  <tr><td colspan="5">No session data yet</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="admin-panel">
+            <div class="admin-panel-header">
+              <h3>Sessions By Operator</h3>
+            </div>
+            <div class="admin-bars" id="adminOperatorBars"></div>
+          </div>
+
+          <div class="admin-panel">
+            <div class="admin-panel-header">
+              <h3>Detections By Hour</h3>
+            </div>
+            <div class="admin-bars" id="adminHourBars"></div>
+          </div>
+
+          <div class="admin-panel">
+            <div class="admin-panel-header">
+              <h3>Recent Detections</h3>
+            </div>
+            <div class="admin-detections" id="adminDetectionsList">
+              <div class="admin-empty">No detections found</div>
+            </div>
+          </div>
+        </div>
+        <div class="login-status" id="adminStatus"></div>
+      </section>
+    </main>
+  </div>
+
+  <div class="auth-overlay open" id="authOverlay">
+    <div class="auth-card" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+      <div class="auth-brand">
+        <div class="auth-mark">&bull;</div>
+        <span class="auth-kicker">Framework Admin</span>
+      </div>
+      <h2 id="authTitle">Admin Sign In</h2>
+      <p class="auth-copy">Use your Framework account to view database monitoring data.</p>
+      <div class="auth-form">
+        <label class="auth-field" for="operatorInput">
+          <span>Username</span>
+          <input type="text" id="operatorInput" placeholder="Username" class="settings-input" autocomplete="username" />
+        </label>
+        <label class="auth-field" for="operatorPass">
+          <span>Password</span>
+          <input type="password" id="operatorPass" placeholder="Password" class="settings-input" autocomplete="current-password" />
+        </label>
+        <button class="settings-btn primary" id="loginBtn" type="button">Login to continue</button>
+        <div class="login-status" id="authLoginStatus"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="admin.js"></script>
+</body>
+</html>

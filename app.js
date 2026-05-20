@@ -14,8 +14,15 @@
 const State = {
   ws: null,
   wsConnected: false,
+  cameraStreamActive: false,
+  cameraStreamUrl: '',
+  mediaRecorder: null,
+  recordedChunks: [],
+  recordingCanvas: null,
+  recordingAnim: null,
+  recordingStartedAt: null,
 
-  operator: null,        // { id, name, initials }
+  operator: null,        // { id, name, displayName, initials }
   sessionId: null,
   sessionStart: null,
   sessionTimer: null,
@@ -24,6 +31,7 @@ const State = {
   humanCount: 0,
   objectCount: 0,
   alertCount: 0,
+  notifications: [],
 
   manualMode: false,
   speed: 50,
@@ -34,6 +42,8 @@ const State = {
   humanOnly: true,
   dbSave: true,
   dbApiUrl: 'http://localhost:3001/api',
+  theme: 'dark',
+  colorScheme: 'blue',
 
   fpsSamples: [],
   lastFrameTime: 0,
@@ -80,9 +90,15 @@ const DOM = {
   // Canvases
   waveformCanvas:  $('waveformCanvas'),
   heatmapCanvas:   $('heatmapCanvas'),
+  waveformOverlayCanvas: $('waveformOverlayCanvas'),
+  heatmapOverlayCanvas:  $('heatmapOverlayCanvas'),
   detectionCanvas: $('detectionCanvas'),
   // Camera
   cameraPlaceholder: $('cameraPlaceholder'),
+  cameraStreamVideo: $('cameraStreamVideo'),
+  cameraStreamImg: $('cameraStreamImg'),
+  captureMenu: $('captureMenu'),
+  captureRecordBtn: $('captureRecordBtn'),
   recIndicator:    $('recIndicator'),
   hudFPS:          $('hudFPS'),
   hudRes:          $('hudRes'),
@@ -90,19 +106,30 @@ const DOM = {
   cameraViewport:  $('cameraViewport'),
   // Log
   logList:         $('logList'),
+  alertBadge:      $('alertBadge'),
   alertCount:      $('alertCount'),
+  notificationMenu: $('notificationMenu'),
+  notificationList: $('notificationList'),
   // User
   displayUserName: $('displayUserName'),
   userChip:        $('userChip'),
   userInitials:    $('userInitials'),
+  userAvatarBtn:   $('userAvatarBtn'),
+  topbarUserBtn:   $('topbarUserBtn'),
+  sidebarUserMenu: $('sidebarUserMenu'),
+  topbarUserMenu:  $('topbarUserMenu'),
   operatorDisplay: $('operatorName'),
   settingsOperatorName: $('settingsOperatorName'),
   // Settings
   settingsPanel:   $('settingsPanel'),
   settingsOverlay: $('settingsOverlay'),
+  profilePanel:    $('profilePanel'),
+  profileOverlay:  $('profileOverlay'),
+  profileStatus:   $('profileStatus'),
   loginStatus:     $('loginStatus'),
   authOverlay:     $('authOverlay'),
   authLoginStatus: $('authLoginStatus'),
+  streamStatus:    $('streamStatus'),
   speedVal:        $('speedVal'),
   manualToggle:    $('manualToggle'),
 };
@@ -112,6 +139,7 @@ const DOM = {
 // ═══════════════════════════════════════════
 
 function init() {
+  initAppearance();
   setupSettings();
   setupNavigation();
   setupControlPad();
@@ -145,23 +173,143 @@ function setupSettings() {
   // Theme
   $('themeDark').addEventListener('click', () => setTheme('dark'));
   $('themeLight').addEventListener('click', () => setTheme('light'));
+  setupProfilePanel();
 
   // Connect / Disconnect
   $('connectBtn').addEventListener('click', connectWS);
   $('disconnectBtn').addEventListener('click', disconnectWS);
+  $('startStreamBtn').addEventListener('click', startCameraStream);
+  $('stopStreamBtn').addEventListener('click', stopCameraStream);
 
   // Login / Logout
   $('loginBtn').addEventListener('click', loginOperator);
   $('logoutBtn').addEventListener('click', logoutOperator);
+  document.querySelectorAll('.logout-menu-btn').forEach(btn => {
+    btn.addEventListener('click', event => {
+      event.stopPropagation();
+      closeUserMenus();
+      logoutOperator();
+    });
+  });
   $('operatorInput').addEventListener('keydown', handleLoginKeydown);
   $('operatorPass').addEventListener('keydown', handleLoginKeydown);
+  setupUserMenus();
 
   // Camera settings
   $('bboxColor').addEventListener('input', e => { State.bboxColor = e.target.value; });
   $('showConfToggle').addEventListener('change', e => { State.showConf = e.target.checked; });
   $('humanOnlyToggle').addEventListener('change', e => { State.humanOnly = e.target.checked; });
-  $('dbSaveToggle').addEventListener('change', e => { State.dbSave = e.target.checked; });
-  $('dbApiUrl').addEventListener('change', e => { State.dbApiUrl = e.target.value.trim(); });
+
+  const savedStreamUrl = localStorage.getItem('robotCameraStreamUrl') || '';
+  $('cameraStreamUrl').value = savedStreamUrl;
+  State.cameraStreamUrl = savedStreamUrl;
+}
+
+function openSettingsPanel() {
+  DOM.settingsPanel.classList.add('open');
+  DOM.settingsOverlay.classList.add('open');
+}
+
+function setupProfilePanel() {
+  const close = () => closeProfilePanel();
+
+  $('profileClose').addEventListener('click', close);
+  DOM.profileOverlay.addEventListener('click', close);
+  $('profileSaveBtn').addEventListener('click', saveProfile);
+
+  document.querySelectorAll('.settings-menu-btn').forEach(btn => {
+    btn.addEventListener('click', event => {
+      event.stopPropagation();
+      closeUserMenus();
+      openSettingsPanel();
+    });
+  });
+
+  document.querySelectorAll('.profile-menu-btn').forEach(btn => {
+    btn.addEventListener('click', event => {
+      event.stopPropagation();
+      closeUserMenus();
+      openProfilePanel();
+    });
+  });
+
+  document.querySelectorAll('.theme-menu-btn').forEach(btn => {
+    btn.addEventListener('click', event => {
+      event.stopPropagation();
+      const nextTheme = State.theme === 'dark' ? 'light' : 'dark';
+      setTheme(nextTheme);
+      closeUserMenus();
+    });
+  });
+
+  document.querySelectorAll('.scheme-option').forEach(btn => {
+    btn.addEventListener('click', () => setColorScheme(btn.dataset.scheme));
+  });
+}
+
+function openProfilePanel() {
+  if (!isAuthenticated()) {
+    setAuthGate(true);
+    return;
+  }
+
+  $('profileDisplayName').value = State.operator?.displayName || State.operator?.name || '';
+  $('profileUsername').value = State.operator?.name || '';
+  $('profileCurrentPassword').value = '';
+  $('profileNewPassword').value = '';
+  DOM.profileStatus.textContent = '';
+  DOM.profileStatus.className = 'login-status';
+  DOM.profilePanel.classList.add('open');
+  DOM.profileOverlay.classList.add('open');
+}
+
+function closeProfilePanel() {
+  DOM.profilePanel.classList.remove('open');
+  DOM.profileOverlay.classList.remove('open');
+}
+
+function setupUserMenus() {
+  const toggleMenu = (menu, trigger) => {
+    const isOpen = menu.classList.toggle('open');
+    trigger.setAttribute('aria-expanded', String(isOpen));
+    if (isOpen) closeNotificationMenu();
+    [DOM.sidebarUserMenu, DOM.topbarUserMenu].forEach(other => {
+      if (other !== menu) other.classList.remove('open');
+    });
+    [DOM.userAvatarBtn, DOM.topbarUserBtn].forEach(other => {
+      if (other !== trigger) other.setAttribute('aria-expanded', 'false');
+    });
+  };
+
+  DOM.userAvatarBtn.addEventListener('click', event => {
+    event.stopPropagation();
+    toggleMenu(DOM.sidebarUserMenu, DOM.userAvatarBtn);
+  });
+  DOM.topbarUserBtn.addEventListener('click', event => {
+    event.stopPropagation();
+    toggleMenu(DOM.topbarUserMenu, DOM.topbarUserBtn);
+  });
+
+  [DOM.userAvatarBtn, DOM.topbarUserBtn].forEach(trigger => {
+    trigger.addEventListener('keydown', event => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        trigger.click();
+      }
+    });
+  });
+
+  document.addEventListener('click', closeUserMenus);
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape') closeUserMenus();
+  });
+}
+
+function closeUserMenus() {
+  DOM.sidebarUserMenu.classList.remove('open');
+  DOM.topbarUserMenu.classList.remove('open');
+  DOM.userAvatarBtn.setAttribute('aria-expanded', 'false');
+  DOM.topbarUserBtn.setAttribute('aria-expanded', 'false');
 }
 
 function isAuthenticated() {
@@ -179,13 +327,13 @@ function setAuthGate(locked) {
 }
 
 function syncOperatorUI() {
-  const name = State.operator?.name || 'Not logged in';
+  const name = State.operator?.displayName || State.operator?.name || 'Not logged in';
   const initials = State.operator?.initials || '--';
 
   DOM.displayUserName.textContent = name;
   DOM.userChip.textContent = State.operator?.initials || '?';
   DOM.userInitials.textContent = initials;
-  DOM.operatorName.textContent = State.operator?.name || '—';
+  DOM.operatorName.textContent = State.operator?.displayName || State.operator?.name || '—';
   DOM.settingsOperatorName.textContent = name;
 }
 
@@ -206,9 +354,27 @@ function handleLoginKeydown(event) {
 }
 
 function setTheme(theme) {
+  State.theme = theme;
   document.documentElement.setAttribute('data-theme', theme);
   $('themeDark').classList.toggle('active', theme === 'dark');
   $('themeLight').classList.toggle('active', theme === 'light');
+  localStorage.setItem('robotTheme', theme);
+}
+
+function setColorScheme(scheme) {
+  State.colorScheme = scheme;
+  document.documentElement.setAttribute('data-scheme', scheme);
+  document.querySelectorAll('.scheme-option').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.scheme === scheme);
+  });
+  localStorage.setItem('robotColorScheme', scheme);
+}
+
+function initAppearance() {
+  const savedTheme = localStorage.getItem('robotTheme') || State.theme;
+  const savedScheme = localStorage.getItem('robotColorScheme') || State.colorScheme;
+  setTheme(savedTheme);
+  setColorScheme(savedScheme);
 }
 
 // ═══════════════════════════════════════════
@@ -217,7 +383,7 @@ function setTheme(theme) {
 
 function setupNavigation() {
   document.querySelectorAll('.nav-item').forEach(btn => {
-    if (btn.id === 'settingsBtn' || btn.classList.contains('user-avatar')) return;
+    if (btn.id === 'settingsBtn' || btn.classList.contains('user-avatar') || !btn.dataset.view) return;
     btn.addEventListener('click', () => {
       setViewMode(btn.dataset.view || 'dashboard');
     });
@@ -225,7 +391,7 @@ function setupNavigation() {
 }
 
 function setViewMode(view) {
-  const allowedViews = new Set(['dashboard', 'camera', 'logs', 'analytics']);
+  const allowedViews = new Set(['dashboard', 'camera', 'logs']);
   const nextView = allowedViews.has(view) ? view : 'dashboard';
 
   DOM.mainContent.dataset.view = nextView;
@@ -239,7 +405,6 @@ function setViewMode(view) {
     dashboard: 'Operations',
     camera: 'Camera Feed',
     logs: 'Detection Log',
-    analytics: 'Analytics',
   };
   document.querySelector('.page-title').textContent = titleMap[nextView];
 }
@@ -287,18 +452,12 @@ function connectWS() {
 
   State.ws.onopen = () => {
     State.wsConnected = true;
-    setConnStatus('connected', 'Connected');
-    DOM.recIndicator.classList.add('active');
-    DOM.cameraPlaceholder.style.display = 'none';
-    startSession();
+    updateCameraVisibility();
   };
 
   State.ws.onclose = () => {
     State.wsConnected = false;
-    setConnStatus('disconnected', 'Disconnected');
-    DOM.recIndicator.classList.remove('active');
-    DOM.cameraPlaceholder.style.display = 'flex';
-    endSession();
+    updateCameraVisibility();
   };
 
   State.ws.onerror = () => {
@@ -311,6 +470,7 @@ function connectWS() {
 function disconnectWS() {
   State.wsConnected = false;
   if (State.ws) { State.ws.close(); State.ws = null; }
+  updateCameraVisibility();
 }
 
 function setConnStatus(status, label) {
@@ -350,6 +510,174 @@ function initDetectionCanvas() {
     canvas.height = viewport.clientHeight;
   });
   resizeObserver.observe(viewport);
+}
+
+function startCameraStream() {
+  const streamUrl = $('cameraStreamUrl').value.trim();
+
+  if (!streamUrl) {
+    setStreamStatus('Enter an RTSP, HTTP, or HTTPS stream URL first', 'error');
+    return;
+  }
+
+  let parsed;
+  try {
+    parsed = new URL(streamUrl);
+  } catch {
+    setStreamStatus('Invalid stream URL', 'error');
+    return;
+  }
+
+  State.cameraStreamUrl = streamUrl;
+  localStorage.setItem('robotCameraStreamUrl', streamUrl);
+  stopCameraStream({ silent: true, restarting: true });
+  clearDetectionCanvas();
+
+  DOM.cameraStreamImg.onload = () => {
+    if (State.cameraStreamActive) setStreamStatus('Video stream active', 'success');
+  };
+
+  DOM.cameraStreamImg.onerror = () => {
+    if (!State.cameraStreamActive) return;
+    State.cameraStreamActive = false;
+    DOM.cameraStreamImg.classList.remove('active');
+    setStreamStatus('Could not load this image/MJPEG stream. Check the URL and stream server.', 'error');
+    updateCameraVisibility();
+  };
+
+  DOM.cameraStreamVideo.onplaying = () => {
+    if (State.cameraStreamActive) setStreamStatus('Video stream active', 'success');
+  };
+
+  DOM.cameraStreamVideo.onerror = () => {
+    if (!State.cameraStreamActive) return;
+    DOM.cameraStreamVideo.classList.remove('active');
+    setStreamStatus('Could not play as browser video. Trying image/MJPEG mode...', 'error');
+    startImageStream(State.cameraStreamUrl);
+  };
+
+  if (parsed.protocol === 'rtsp:') {
+    const proxyUrl = buildRtspProxyUrl(streamUrl);
+    verifyRtspProxy(proxyUrl);
+    startImageStream(proxyUrl);
+    State.cameraStreamActive = true;
+    setStreamStatus('Starting RTSP video through local proxy...', 'success');
+  } else if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+    if (isBrowserVideoStream(streamUrl)) {
+      startVideoStream(streamUrl);
+    } else {
+      startImageStream(streamUrl);
+    }
+    State.cameraStreamActive = true;
+    setStreamStatus('Starting HTTP video stream...', 'success');
+  } else {
+    setStreamStatus('Use rtsp://, http://, or https://', 'error');
+    return;
+  }
+
+  updateCameraVisibility();
+}
+
+function startImageStream(streamUrl) {
+  DOM.cameraStreamVideo.pause();
+  DOM.cameraStreamVideo.removeAttribute('src');
+  DOM.cameraStreamVideo.load();
+  DOM.cameraStreamVideo.classList.remove('active');
+
+  DOM.cameraStreamImg.src = streamUrl;
+  DOM.cameraStreamImg.classList.add('active');
+}
+
+function startVideoStream(streamUrl) {
+  DOM.cameraStreamImg.removeAttribute('src');
+  DOM.cameraStreamImg.classList.remove('active');
+
+  DOM.cameraStreamVideo.src = streamUrl;
+  DOM.cameraStreamVideo.classList.add('active');
+  DOM.cameraStreamVideo.play().catch(() => {
+    if (!State.cameraStreamActive) return;
+    setStreamStatus('Browser blocked playback or cannot play this stream type. Trying image stream mode...', 'error');
+    startImageStream(streamUrl);
+  });
+}
+
+function isBrowserVideoStream(streamUrl) {
+  const lowerUrl = streamUrl.toLowerCase();
+  return lowerUrl.endsWith('.mp4')
+    || lowerUrl.endsWith('.webm')
+    || lowerUrl.endsWith('.ogv')
+    || lowerUrl.endsWith('.ogg')
+    || lowerUrl.endsWith('.mov');
+}
+
+function stopCameraStream(options = {}) {
+  DOM.cameraStreamVideo.pause();
+  DOM.cameraStreamVideo.removeAttribute('src');
+  DOM.cameraStreamVideo.load();
+  DOM.cameraStreamImg.removeAttribute('src');
+  DOM.cameraStreamVideo.classList.remove('active');
+  DOM.cameraStreamImg.classList.remove('active');
+  State.cameraStreamActive = false;
+  if (State.mediaRecorder?.state === 'recording') stopCameraRecording();
+
+  if (!options.silent) setStreamStatus('Video stream stopped', '');
+  if (!options.restarting) updateCameraVisibility();
+}
+
+function buildRtspProxyUrl(streamUrl) {
+  const apiOrigin = getApiOrigin();
+  const origin = apiOrigin || 'http://localhost:3001';
+  return `${origin}/api/rtsp-proxy?url=${encodeURIComponent(streamUrl)}`;
+}
+
+function getApiOrigin() {
+  if (State.dbApiUrl) {
+    try {
+      return new URL(State.dbApiUrl).origin;
+    } catch { /* fallback below */ }
+  }
+
+  if (window.location.origin && window.location.origin !== 'null') {
+    return window.location.origin;
+  }
+
+  return 'http://localhost:3001';
+}
+
+async function verifyRtspProxy(proxyUrl) {
+  const healthUrl = proxyUrl.replace('/api/rtsp-proxy?', '/api/rtsp-health?');
+
+  try {
+    const res = await fetch(healthUrl);
+    if (!res.ok) throw new Error();
+  } catch {
+    setStreamStatus('RTSP proxy is not reachable. Start server.js on port 3001 or set DB API Endpoint to the backend URL.', 'error');
+  }
+}
+
+function setStreamStatus(message, type) {
+  DOM.streamStatus.textContent = message;
+  DOM.streamStatus.className = `stream-status ${type || ''}`.trim();
+}
+
+function updateCameraVisibility() {
+  const hasFeed = State.wsConnected || State.cameraStreamActive;
+  DOM.cameraPlaceholder.style.display = hasFeed ? 'none' : 'flex';
+  DOM.recIndicator.classList.toggle('active', hasFeed);
+
+  if (hasFeed) {
+    setConnStatus('connected', 'Connected');
+    startSession();
+  } else {
+    setConnStatus('disconnected', 'Disconnected');
+    endSession();
+  }
+}
+
+function clearDetectionCanvas() {
+  const canvas = DOM.detectionCanvas;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 }
 
 function renderFrame(base64jpeg, detections) {
@@ -481,6 +809,10 @@ function addLogEntry(det) {
 
   const now = new Date();
   const ts  = now.toLocaleTimeString('en-GB', { hour12: false });
+  const id = `human-${now.getTime()}-${Math.random().toString(16).slice(2)}`;
+  const confidence = ((det.confidence || 0) * 100).toFixed(1);
+  const bbox = (det.bbox || []).map(v => v.toFixed ? v.toFixed(0) : v).join(', ');
+  entry.dataset.notificationId = id;
 
   entry.innerHTML = `
     <div class="log-entry-time">${ts}</div>
@@ -489,6 +821,7 @@ function addLogEntry(det) {
   `;
 
   DOM.logList.insertBefore(entry, DOM.logList.firstChild);
+  addNotification({ id, ts, confidence, bbox });
 
   // Keep max 100 entries
   const entries = DOM.logList.querySelectorAll('.log-entry');
@@ -501,10 +834,66 @@ function incrementAlert() {
   DOM.alertCount.classList.add('visible');
 }
 
+function addNotification(notification) {
+  State.notifications.unshift(notification);
+  State.notifications = State.notifications.slice(0, 8);
+  renderNotifications();
+}
+
+function renderNotifications() {
+  if (!State.notifications.length) {
+    DOM.notificationList.innerHTML = '<div class="notification-empty">No human detections yet</div>';
+    return;
+  }
+
+  DOM.notificationList.innerHTML = '';
+  State.notifications.forEach(item => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'notification-item';
+    btn.dataset.notificationId = item.id;
+    btn.innerHTML = `
+      <span class="notification-title">Human detected</span>
+      <span class="notification-meta">${item.ts} · ${item.confidence}% confidence</span>
+      <span class="notification-detail">bbox: [${item.bbox}]</span>
+    `;
+    btn.addEventListener('click', () => openNotificationLog(item.id));
+    DOM.notificationList.appendChild(btn);
+  });
+}
+
+function openNotificationLog(notificationId) {
+  closeNotificationMenu();
+  State.alertCount = 0;
+  DOM.alertCount.classList.remove('visible');
+  setViewMode('logs');
+
+  window.setTimeout(() => {
+    const entry = DOM.logList.querySelector(`[data-notification-id="${notificationId}"]`);
+    if (!entry) return;
+    entry.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    entry.classList.add('highlight');
+    window.setTimeout(() => entry.classList.remove('highlight'), 1600);
+  }, 50);
+}
+
+function toggleNotificationMenu() {
+  const isOpen = DOM.notificationMenu.classList.toggle('open');
+  DOM.alertBadge.setAttribute('aria-expanded', String(isOpen));
+  if (isOpen) closeUserMenus();
+}
+
+function closeNotificationMenu() {
+  DOM.notificationMenu.classList.remove('open');
+  DOM.alertBadge.setAttribute('aria-expanded', 'false');
+}
+
 $('clearLogBtn').addEventListener('click', () => {
   DOM.logList.innerHTML = '<div class="log-empty">No human detections yet</div>';
   State.alertCount = 0;
+  State.notifications = [];
   DOM.alertCount.classList.remove('visible');
+  renderNotifications();
 });
 
 $('searchInput').addEventListener('input', e => {
@@ -523,6 +912,7 @@ async function initWaveform() {
   // Set actual pixel resolution
   canvas.width  = canvas.offsetWidth  * window.devicePixelRatio || 300;
   canvas.height = canvas.offsetHeight * window.devicePixelRatio || 60;
+  resizeSensorOverlayCanvases();
 
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
@@ -582,6 +972,7 @@ function drawWaveform() {
     });
 
     ctx.stroke();
+    drawWaveformBuffer(DOM.waveformOverlayCanvas, buf);
 
     // Filled area
     ctx.lineTo(w, h);
@@ -598,6 +989,7 @@ function drawWaveform() {
 function drawDemoWaveform() {
   const canvas = DOM.waveformCanvas;
   const ctx    = canvas.getContext('2d');
+  const overlay = DOM.waveformOverlayCanvas;
   let t = 0;
 
   function draw() {
@@ -618,9 +1010,51 @@ function drawDemoWaveform() {
       x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
     }
     ctx.stroke();
+    drawDemoWaveformOverlay(overlay, t);
     t += 0.05;
   }
   draw();
+}
+
+function drawWaveformBuffer(canvas, buf) {
+  if (!canvas) return;
+  ensureOverlayCanvasSize(canvas, 180, 54);
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width;
+  const h = canvas.height;
+
+  ctx.clearRect(0, 0, w, h);
+  ctx.beginPath();
+  ctx.strokeStyle = 'rgba(155, 215, 255, 0.78)';
+  ctx.lineWidth = 1.3 * window.devicePixelRatio;
+
+  const sliceW = w / buf.length;
+  let x = 0;
+  buf.forEach((v, i) => {
+    const y = (v / 255.0) * h;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    x += sliceW;
+  });
+  ctx.stroke();
+}
+
+function drawDemoWaveformOverlay(canvas, t) {
+  if (!canvas) return;
+  ensureOverlayCanvasSize(canvas, 180, 54);
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width;
+  const h = canvas.height;
+
+  ctx.clearRect(0, 0, w, h);
+  ctx.beginPath();
+  ctx.strokeStyle = 'rgba(155, 215, 255, 0.58)';
+  ctx.lineWidth = 1.3 * window.devicePixelRatio;
+  for (let x = 0; x < w; x++) {
+    const y = h / 2 + Math.sin((x / w) * Math.PI * 6 + t) * (h * 0.12)
+                    + Math.sin((x / w) * Math.PI * 10 + t * 1.3) * (h * 0.07);
+    x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.stroke();
 }
 
 // ═══════════════════════════════════════════
@@ -631,6 +1065,10 @@ function initHeatmap() {
   const canvas = DOM.heatmapCanvas;
   canvas.width  = 8;
   canvas.height = 8;
+  if (DOM.heatmapOverlayCanvas) {
+    DOM.heatmapOverlayCanvas.width = 8;
+    DOM.heatmapOverlayCanvas.height = 8;
+  }
 
   // Start simulated IR data when no WS
   simulateIR();
@@ -687,9 +1125,31 @@ function drawHeatmap() {
     });
 
     ctx.putImageData(img, 0, 0);
+    if (DOM.heatmapOverlayCanvas) {
+      DOM.heatmapOverlayCanvas.getContext('2d').putImageData(img, 0, 0);
+    }
   }
 
   draw();
+}
+
+function ensureOverlayCanvasSize(canvas, width, height) {
+  if (!canvas) return;
+  const scale = window.devicePixelRatio || 1;
+  const nextWidth = Math.round((canvas.offsetWidth || width) * scale);
+  const nextHeight = Math.round((canvas.offsetHeight || height) * scale);
+  if (canvas.width !== nextWidth || canvas.height !== nextHeight) {
+    canvas.width = nextWidth;
+    canvas.height = nextHeight;
+  }
+}
+
+function resizeSensorOverlayCanvases() {
+  ensureOverlayCanvasSize(DOM.waveformOverlayCanvas, 180, 54);
+  if (DOM.heatmapOverlayCanvas) {
+    DOM.heatmapOverlayCanvas.width = 8;
+    DOM.heatmapOverlayCanvas.height = 8;
+  }
 }
 
 function tempToRGB(t) {
@@ -826,6 +1286,13 @@ function updateHUDTimestamp() {
   DOM.hudTimestamp.textContent = now.toLocaleTimeString('en-GB', { hour12: false });
 }
 
+function toMysqlDateTime(value = new Date()) {
+  const date = value instanceof Date ? value : new Date(value);
+  const validDate = Number.isNaN(date.getTime()) ? new Date() : date;
+  const pad = n => String(n).padStart(2, '0');
+  return `${validDate.getFullYear()}-${pad(validDate.getMonth() + 1)}-${pad(validDate.getDate())} ${pad(validDate.getHours())}:${pad(validDate.getMinutes())}:${pad(validDate.getSeconds())}`;
+}
+
 // ═══════════════════════════════════════════
 //  OPERATOR LOGIN
 // ═══════════════════════════════════════════
@@ -849,8 +1316,6 @@ async function loginOperator() {
     return;
   }
 
-  const initials = name.split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0,2);
-
   try {
     const res = await fetch(`${State.dbApiUrl}/login`, {
       method:  'POST',
@@ -871,7 +1336,12 @@ async function loginOperator() {
       return;
     }
 
-    State.operator = { id: data.id, name: data.username, initials };
+    State.operator = {
+      id: data.id,
+      name: data.username,
+      displayName: data.display_name || data.username,
+      initials: getInitials(data.display_name || data.username),
+    };
   } catch {
     State.operator = null;
     showLoginStatus('Authentication server unavailable', 'error');
@@ -881,13 +1351,88 @@ async function loginOperator() {
   showLoginStatus(`Welcome, ${State.operator.name}`, 'success');
   syncOperatorUI();
   setAuthGate(false);
+  setViewMode('dashboard');
   $('operatorPass').value = '';
 
 }
 
+function getInitials(name) {
+  return String(name || '')
+    .trim()
+    .split(/\s+/)
+    .map(w => w[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2) || '--';
+}
+
+async function saveProfile() {
+  if (!State.operator?.id) {
+    showStatus(DOM.profileStatus, 'Login required', 'error');
+    return;
+  }
+
+  const displayName = $('profileDisplayName').value.trim();
+  const username = $('profileUsername').value.trim();
+  const currentPassword = $('profileCurrentPassword').value;
+  const newPassword = $('profileNewPassword').value;
+
+  if (!username) {
+    showStatus(DOM.profileStatus, 'Username is required', 'error');
+    return;
+  }
+
+  if (newPassword && !currentPassword) {
+    showStatus(DOM.profileStatus, 'Enter your current password first', 'error');
+    return;
+  }
+
+  try {
+    const res = await fetch(`${State.dbApiUrl}/operators/${State.operator.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username,
+        display_name: displayName || username,
+        current_password: currentPassword,
+        new_password: newPassword,
+      }),
+    });
+
+    let data = {};
+    try {
+      data = await res.json();
+    } catch {
+      data = {};
+    }
+
+    if (!res.ok) {
+      showStatus(DOM.profileStatus, data.message || 'Profile update failed', 'error');
+      return;
+    }
+
+    State.operator = {
+      ...State.operator,
+      name: data.username,
+      displayName: data.display_name || data.username,
+      initials: getInitials(data.display_name || data.username),
+    };
+    syncOperatorUI();
+    $('profileCurrentPassword').value = '';
+    $('profileNewPassword').value = '';
+    showStatus(DOM.profileStatus, 'Profile updated', 'success');
+  } catch {
+    showStatus(DOM.profileStatus, 'Profile server unavailable', 'error');
+  }
+}
+
 function logoutOperator() {
   disconnectWS();
+  stopCameraStream({ silent: true });
   if (State.dbSave) endDbSession();
+  closeProfilePanel();
+  DOM.settingsPanel.classList.remove('open');
+  DOM.settingsOverlay.classList.remove('open');
   State.operator = null;
   State.manualMode = false;
   DOM.manualToggle.checked = false;
@@ -939,7 +1484,7 @@ function showLoginStatus(msg, type) {
  * REST API (Node/Express proxy) endpoints used:
  *   POST /api/login             { username, password }
  *   POST /api/sessions          { operator_id, ws_endpoint }  → { session_id }
- *   PUT  /api/sessions/:id/end  { ended_at }
+ *   PUT  /api/sessions/:id/end  { ended_at, duration_s }
  *   POST /api/detections        { session_id, label, confidence, bbox }
  */
 
@@ -957,16 +1502,18 @@ async function startDbSession() {
   } catch { /* offline */ }
 }
 
-async function endDbSession() {
+async function endDbSession(durationSeconds = null) {
   if (!State.sessionId || !State.dbApiUrl) return;
+  const sessionId = State.sessionId;
+  State.sessionId = null;
+  const endedAt = toMysqlDateTime();
   try {
-    await fetch(`${State.dbApiUrl}/sessions/${State.sessionId}/end`, {
+    await fetch(`${State.dbApiUrl}/sessions/${sessionId}/end`, {
       method:  'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ ended_at: new Date().toISOString() }),
+      body:    JSON.stringify({ ended_at: endedAt, duration_s: durationSeconds }),
     });
   } catch { /* offline */ }
-  State.sessionId = null;
 }
 
 async function logToDatabase(det) {
@@ -981,20 +1528,24 @@ async function logToDatabase(det) {
         label:       det.label,
         confidence:  det.confidence || 0,
         bbox_x: bx, bbox_y: by, bbox_w: bw, bbox_h: bh,
-        detected_at: new Date().toISOString(),
+        detected_at: toMysqlDateTime(),
       }),
     });
   } catch { /* offline */ }
 }
 
 function startSession() {
+  if (State.sessionStart) return;
   State.sessionStart = Date.now();
   if (State.dbSave && State.operator) startDbSession();
 }
 
 function endSession() {
+  if (!State.sessionStart) return;
+  const durationSeconds = Math.max(0, Math.floor((Date.now() - State.sessionStart) / 1000));
   State.sessionStart = null;
-  if (State.dbSave) endDbSession();
+  DOM.sessionTime.textContent = '00:00';
+  if (State.dbSave) endDbSession(durationSeconds);
 }
 
 function buildWsUrl() {
@@ -1005,11 +1556,57 @@ function buildWsUrl() {
   return `${proto}://${host}:${port}${path}`;
 }
 
+function getSessionDuration(session) {
+  if (Number(session.duration_s)) return Number(session.duration_s);
+  if (!session.started_at) return 0;
+  const start = parseDbDate(session.started_at).getTime();
+  const end = session.ended_at ? parseDbDate(session.ended_at).getTime() : Date.now();
+  if (Number.isNaN(start) || Number.isNaN(end)) return 0;
+  return Math.max(0, Math.floor((end - start) / 1000));
+}
+
+function formatDuration(seconds) {
+  const safeSeconds = Math.max(0, Number(seconds) || 0);
+  const h = Math.floor(safeSeconds / 3600);
+  const m = Math.floor((safeSeconds % 3600) / 60);
+  const s = Math.floor(safeSeconds % 60);
+  return h ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}` : `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+function formatDateTime(value) {
+  if (!value) return '--';
+  const date = parseDbDate(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleString('en-GB', { hour12: false });
+}
+
+function parseDbDate(value) {
+  if (value instanceof Date) return value;
+  return new Date(String(value || '').replace(' ', 'T'));
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 // ═══════════════════════════════════════════
 //  MISC BUTTONS
 // ═══════════════════════════════════════════
 
 function setupButtons() {
+  DOM.alertBadge.addEventListener('click', event => {
+    event.stopPropagation();
+    toggleNotificationMenu();
+  });
+
+  DOM.notificationMenu.addEventListener('click', event => event.stopPropagation());
+  document.addEventListener('click', closeNotificationMenu);
+
   // Fullscreen camera
   $('fullscreenBtn').addEventListener('click', () => {
     const isCameraView = DOM.mainContent.dataset.view === 'camera';
@@ -1023,13 +1620,164 @@ function setupButtons() {
   });
 
   // Snapshot
-  $('snapshotBtn').addEventListener('click', () => {
-    const canvas = DOM.detectionCanvas;
-    const link   = document.createElement('a');
-    link.href     = canvas.toDataURL('image/png');
+  $('snapshotBtn').addEventListener('click', event => {
+    event.stopPropagation();
+    toggleCaptureMenu();
+  });
+  DOM.captureMenu.addEventListener('click', event => event.stopPropagation());
+  $('captureScreenshotBtn').addEventListener('click', () => {
+    closeCaptureMenu();
+    takeCameraScreenshot();
+  });
+  DOM.captureRecordBtn.addEventListener('click', () => {
+    closeCaptureMenu();
+    toggleCameraRecording();
+  });
+  document.addEventListener('click', closeCaptureMenu);
+}
+
+function toggleCaptureMenu() {
+  const isOpen = DOM.captureMenu.classList.toggle('open');
+  $('snapshotBtn').setAttribute('aria-expanded', String(isOpen));
+}
+
+function closeCaptureMenu() {
+  DOM.captureMenu.classList.remove('open');
+  $('snapshotBtn').setAttribute('aria-expanded', 'false');
+}
+
+function createCameraCaptureCanvas() {
+  const sourceCanvas = DOM.detectionCanvas;
+  const canvas = document.createElement('canvas');
+  canvas.width = sourceCanvas.width || DOM.cameraViewport.clientWidth || 1280;
+  canvas.height = sourceCanvas.height || DOM.cameraViewport.clientHeight || 720;
+  drawCameraCaptureFrame(canvas);
+  return canvas;
+}
+
+function drawCameraCaptureFrame(canvas) {
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width;
+  const h = canvas.height;
+
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, w, h);
+
+  const media = DOM.cameraStreamVideo.classList.contains('active')
+    ? DOM.cameraStreamVideo
+    : DOM.cameraStreamImg.classList.contains('active')
+      ? DOM.cameraStreamImg
+      : null;
+
+  if (media) drawMediaContain(ctx, media, w, h);
+  ctx.drawImage(DOM.detectionCanvas, 0, 0, w, h);
+}
+
+function drawMediaContain(ctx, media, w, h) {
+  const mw = media.videoWidth || media.naturalWidth || media.clientWidth || w;
+  const mh = media.videoHeight || media.naturalHeight || media.clientHeight || h;
+  if (!mw || !mh) return;
+
+  const scale = Math.min(w / mw, h / mh);
+  const dw = mw * scale;
+  const dh = mh * scale;
+  const dx = (w - dw) / 2;
+  const dy = (h - dh) / 2;
+  ctx.drawImage(media, dx, dy, dw, dh);
+}
+
+function takeCameraScreenshot() {
+  try {
+    const canvas = createCameraCaptureCanvas();
+    const link = document.createElement('a');
+    link.href = canvas.toDataURL('image/png');
     link.download = `rover_snapshot_${Date.now()}.png`;
     link.click();
-  });
+    setStreamStatus('Screenshot saved', 'success');
+  } catch {
+    setStreamStatus('Screenshot blocked by the stream source. Use a same-origin/proxied stream.', 'error');
+  }
+}
+
+function toggleCameraRecording() {
+  if (State.mediaRecorder?.state === 'recording') {
+    stopCameraRecording();
+  } else {
+    startCameraRecording();
+  }
+}
+
+function startCameraRecording() {
+  if (!window.MediaRecorder) {
+    setStreamStatus('Recording is not supported in this browser', 'error');
+    return;
+  }
+
+  try {
+    const canvas = createCameraCaptureCanvas();
+    const stream = canvas.captureStream(24);
+    const recorder = new MediaRecorder(stream, { mimeType: getRecordingMimeType() });
+
+    State.recordingCanvas = canvas;
+    State.recordedChunks = [];
+    State.mediaRecorder = recorder;
+    State.recordingStartedAt = Date.now();
+
+    recorder.ondataavailable = event => {
+      if (event.data?.size) State.recordedChunks.push(event.data);
+    };
+    recorder.onstop = saveCameraRecording;
+    recorder.start();
+    DOM.captureRecordBtn.textContent = 'Stop recording';
+    DOM.recIndicator.classList.add('recording');
+    setStreamStatus('Recording camera feed...', 'success');
+    drawRecordingLoop();
+  } catch {
+    setStreamStatus('Recording blocked by the stream source. Use a same-origin/proxied stream.', 'error');
+  }
+}
+
+function drawRecordingLoop() {
+  if (State.mediaRecorder?.state !== 'recording' || !State.recordingCanvas) return;
+  try {
+    drawCameraCaptureFrame(State.recordingCanvas);
+  } catch {
+    stopCameraRecording();
+    setStreamStatus('Recording stopped because the stream source blocked capture', 'error');
+    return;
+  }
+  State.recordingAnim = requestAnimationFrame(drawRecordingLoop);
+}
+
+function stopCameraRecording() {
+  if (State.recordingAnim) cancelAnimationFrame(State.recordingAnim);
+  State.recordingAnim = null;
+  if (State.mediaRecorder?.state === 'recording') State.mediaRecorder.stop();
+}
+
+function saveCameraRecording() {
+  const mimeType = State.mediaRecorder?.mimeType || getRecordingMimeType();
+  const extension = mimeType.includes('mp4') ? 'mp4' : 'webm';
+  const blob = new Blob(State.recordedChunks, { type: mimeType });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `rover_recording_${State.recordingStartedAt || Date.now()}.${extension}`;
+  link.click();
+  window.setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+
+  State.mediaRecorder = null;
+  State.recordingCanvas = null;
+  State.recordedChunks = [];
+  State.recordingStartedAt = null;
+  DOM.captureRecordBtn.textContent = 'Start recording';
+  DOM.recIndicator.classList.remove('recording');
+  setStreamStatus('Recording saved', 'success');
+}
+
+function getRecordingMimeType() {
+  if (MediaRecorder.isTypeSupported?.('video/webm;codecs=vp9')) return 'video/webm;codecs=vp9';
+  if (MediaRecorder.isTypeSupported?.('video/webm;codecs=vp8')) return 'video/webm;codecs=vp8';
+  return 'video/webm';
 }
 
 // ═══════════════════════════════════════════
@@ -1044,6 +1792,7 @@ window.addEventListener('resize', () => {
   const dc = DOM.detectionCanvas;
   dc.width  = DOM.cameraViewport.clientWidth;
   dc.height = DOM.cameraViewport.clientHeight;
+  resizeSensorOverlayCanvases();
 });
 
 // ═══════════════════════════════════════════

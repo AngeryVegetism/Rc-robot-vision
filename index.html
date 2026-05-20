@@ -30,17 +30,23 @@
         <button class="nav-item" data-tooltip="Detection Log" data-view="logs">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 12h6M9 16h6M9 8h6M5 4h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V5a1 1 0 011-1z"/></svg>
         </button>
-        <button class="nav-item" data-tooltip="Analytics" data-view="analytics">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-        </button>
+        <a class="nav-item" data-tooltip="Admin Panel" href="admin.html" aria-label="Admin Panel">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l8 4v5c0 5-3.4 8.4-8 9-4.6-.6-8-4-8-9V7l8-4z"/><path d="M9 12l2 2 4-5"/></svg>
+        </a>
       </nav>
 
       <div class="sidebar-bottom">
         <button class="nav-item" id="settingsBtn" data-tooltip="Settings">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
         </button>
-        <div class="user-avatar" id="userAvatarBtn" data-tooltip="User">
+        <div class="user-avatar" id="userAvatarBtn" data-tooltip="User" role="button" tabindex="0" aria-haspopup="true" aria-expanded="false">
           <span id="userInitials">--</span>
+        </div>
+        <div class="user-menu sidebar-user-menu" id="sidebarUserMenu">
+          <button class="user-menu-item settings-menu-btn" type="button">Settings</button>
+          <button class="user-menu-item profile-menu-btn" type="button">Profile</button>
+          <button class="user-menu-item theme-menu-btn" type="button">Toggle Theme mode</button>
+          <button class="user-menu-item danger logout-menu-btn" type="button">Logout</button>
         </div>
       </div>
     </aside>
@@ -62,13 +68,27 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
           <input type="text" placeholder="Search logs..." id="searchInput" />
         </div>
-        <div class="topbar-badge" id="alertBadge">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
-          <span class="badge-count" id="alertCount">0</span>
+        <div class="notifications" id="notifications">
+          <button class="topbar-badge" id="alertBadge" type="button" title="Human detection notifications" aria-label="Human detection notifications" aria-haspopup="true" aria-expanded="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
+            <span class="badge-count" id="alertCount">0</span>
+          </button>
+          <div class="notification-menu" id="notificationMenu">
+            <div class="notification-menu-header">Human detections</div>
+            <div class="notification-list" id="notificationList">
+              <div class="notification-empty">No human detections yet</div>
+            </div>
+          </div>
         </div>
-        <div class="user-info">
+        <div class="user-info" id="topbarUserBtn" role="button" tabindex="0" aria-haspopup="true" aria-expanded="false">
           <span class="user-name" id="displayUserName">Not logged in</span>
           <div class="user-chip" id="userChip">?</div>
+          <div class="user-menu topbar-user-menu" id="topbarUserMenu">
+            <button class="user-menu-item settings-menu-btn" type="button">Settings</button>
+            <button class="user-menu-item profile-menu-btn" type="button">Profile</button>
+            <button class="user-menu-item theme-menu-btn" type="button">Toggle Theme mode</button>
+            <button class="user-menu-item danger logout-menu-btn" type="button">Logout</button>
+          </div>
         </div>
       </div>
     </header>
@@ -192,9 +212,15 @@
             <div class="rec-indicator" id="recIndicator">
               <span class="rec-dot"></span> REC
             </div>
-            <button class="cam-btn" id="snapshotBtn" title="Snapshot">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
-            </button>
+            <div class="capture-menu-wrap">
+              <button class="cam-btn" id="snapshotBtn" title="Capture" aria-haspopup="true" aria-expanded="false">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+              </button>
+              <div class="capture-menu" id="captureMenu">
+                <button class="capture-menu-item" id="captureScreenshotBtn" type="button">Take screenshot</button>
+                <button class="capture-menu-item" id="captureRecordBtn" type="button">Start recording</button>
+              </div>
+            </div>
             <button class="cam-btn" id="fullscreenBtn" title="Fullscreen">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
             </button>
@@ -202,12 +228,14 @@
         </div>
 
         <div class="camera-viewport" id="cameraViewport">
+          <video id="cameraStreamVideo" class="camera-stream-media" autoplay muted playsinline></video>
+          <img id="cameraStreamImg" class="camera-stream-media" alt="" />
           <canvas id="detectionCanvas"></canvas>
           <div class="camera-placeholder" id="cameraPlaceholder">
             <div class="placeholder-inner">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14"/><rect x="3" y="8" width="12" height="8" rx="2"/></svg>
               <p>No camera feed</p>
-              <span>Connect to WebSocket to start stream</span>
+              <span>Add an RTSP stream in Settings</span>
             </div>
           </div>
           <div class="scanline-overlay"></div>
@@ -219,6 +247,16 @@
             <span class="hud-item" id="hudFPS">0 FPS</span>
             <span class="hud-item" id="hudRes">—</span>
             <span class="hud-item" id="hudTimestamp">--:--:--</span>
+          </div>
+          <div class="sensor-overlay" aria-hidden="true">
+            <div class="sensor-overlay-panel">
+              <span>IR</span>
+              <canvas id="heatmapOverlayCanvas" class="heatmap-overlay-canvas"></canvas>
+            </div>
+            <div class="sensor-overlay-panel">
+              <span>Audio</span>
+              <canvas id="waveformOverlayCanvas" class="waveform-overlay-canvas"></canvas>
+            </div>
           </div>
         </div>
       </div>
@@ -285,29 +323,6 @@
       </section>
 
       <section class="settings-section">
-        <h3>Database</h3>
-        <div class="settings-row col">
-          <label>MySQL Host</label>
-          <input type="text" id="dbHost" placeholder="localhost" class="settings-input" />
-        </div>
-        <div class="settings-row col">
-          <label>Database Name</label>
-          <input type="text" id="dbName" placeholder="rover_db" class="settings-input" />
-        </div>
-        <div class="settings-row col">
-          <label>API Endpoint (DB Proxy)</label>
-          <input type="text" id="dbApiUrl" placeholder="http://localhost:3001/api" class="settings-input" />
-        </div>
-        <div class="settings-row">
-          <label>Save sessions to DB</label>
-          <label class="toggle-label small">
-            <input type="checkbox" id="dbSaveToggle" class="toggle-input" checked />
-            <span class="toggle-track"></span>
-          </label>
-        </div>
-      </section>
-
-      <section class="settings-section">
         <h3>Operator Session</h3>
         <div class="settings-row">
           <label>Current operator</label>
@@ -319,6 +334,15 @@
 
       <section class="settings-section">
         <h3>Camera</h3>
+        <div class="settings-row col">
+          <label>Robot Video Stream URL</label>
+          <input type="url" id="cameraStreamUrl" placeholder="http://192.168.1.100:8080/video or rtsp://192.168.1.100:554/stream1" class="settings-input" />
+        </div>
+        <div class="settings-actions">
+          <button class="settings-btn primary" id="startStreamBtn">Start Video</button>
+          <button class="settings-btn danger" id="stopStreamBtn">Stop Video</button>
+        </div>
+        <div class="stream-status" id="streamStatus"></div>
         <div class="settings-row">
           <label>Bounding Box Color</label>
           <input type="color" id="bboxColor" value="#5c5cff" class="color-picker" />
@@ -342,18 +366,64 @@
     </div>
   </aside>
 
+  <div class="profile-overlay" id="profileOverlay"></div>
+  <aside class="profile-panel" id="profilePanel">
+    <div class="settings-header">
+      <h2>Profile</h2>
+      <button class="settings-close" id="profileClose">×</button>
+    </div>
+    <div class="settings-body">
+      <section class="settings-section">
+        <h3>Profile Details</h3>
+        <div class="settings-row col">
+          <label>Display name</label>
+          <input type="text" id="profileDisplayName" class="settings-input" autocomplete="name" />
+        </div>
+        <div class="settings-row col">
+          <label>Username</label>
+          <input type="text" id="profileUsername" class="settings-input" autocomplete="username" />
+        </div>
+      </section>
+
+      <section class="settings-section">
+        <h3>Password</h3>
+        <div class="settings-row col">
+          <label>Current password</label>
+          <input type="password" id="profileCurrentPassword" class="settings-input" autocomplete="current-password" />
+        </div>
+        <div class="settings-row col">
+          <label>New password</label>
+          <input type="password" id="profileNewPassword" class="settings-input" autocomplete="new-password" />
+        </div>
+      </section>
+
+      <section class="settings-section">
+        <h3>Color Scheme</h3>
+        <div class="scheme-grid" id="profileSchemeGrid">
+          <button class="scheme-option active" type="button" data-scheme="blue"><span style="background:#5ca8ff"></span>Blue</button>
+          <button class="scheme-option" type="button" data-scheme="green"><span style="background:#30c48d"></span>Green</button>
+          <button class="scheme-option" type="button" data-scheme="rose"><span style="background:#f06292"></span>Rose</button>
+          <button class="scheme-option" type="button" data-scheme="amber"><span style="background:#f2a33a"></span>Amber</button>
+        </div>
+      </section>
+
+      <button class="settings-btn primary" id="profileSaveBtn">Save profile</button>
+      <div class="login-status" id="profileStatus"></div>
+    </div>
+  </aside>
+
   <div class="auth-overlay" id="authOverlay">
     <div class="auth-card" role="dialog" aria-modal="true" aria-labelledby="authTitle">
       <div class="auth-brand">
         <div class="auth-mark">◈</div>
         <span class="auth-kicker">Framework</span>
       </div>
-      <h2 id="authTitle">Login required</h2>
-      <p class="auth-copy">Sign in before using the dashboard or connecting to the robot feed.</p>
+      <h2 id="authTitle">Sign In</h2>
+      <p class="auth-copy">Use your Framework Account</p>
       <div class="auth-form">
         <label class="auth-field" for="operatorInput">
           <span>Username</span>
-          <input type="text" id="operatorInput" placeholder="username" class="settings-input" autocomplete="username" />
+          <input type="text" id="operatorInput" placeholder="Username" class="settings-input" autocomplete="username" />
         </label>
         <label class="auth-field" for="operatorPass">
           <span>Password</span>
