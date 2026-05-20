@@ -1,4 +1,4 @@
-venv/
-*.pem
-__pycache__/
-*.pt
+*.pt 
+venv\ 
+__pycache__\ 
+*.code-workspace 
