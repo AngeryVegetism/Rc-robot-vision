@@ -1,0 +1,19 @@
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE files
+.vscode/
+.idea/
+
+# Model/cache files
+*.pt
+*.pth
+
+# Operating system files
+.DS_Store
+Thumbs.db

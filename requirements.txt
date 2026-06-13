@@ -6,4 +6,5 @@ opencv-python-headless>=4.9.0
 scipy>=1.13.0
 ultralytics>=8.2.0       # YOLOv8 — remove if using custom weights
 pydantic>=2.7.0
-websockets>=12.0
+websockets>=12.0easyocr>=1.7.2
+easyocr>=1.7.2
