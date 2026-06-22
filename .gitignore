@@ -1,0 +1,5 @@
+*.pt 
+venv 
+__pycache__ 
+*.code-workspace 
+*.codex
