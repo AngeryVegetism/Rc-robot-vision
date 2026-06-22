@@ -4,6 +4,7 @@ on:
   push:
     branches:
     - main
+    - leon's-dev
 
 
 jobs:
